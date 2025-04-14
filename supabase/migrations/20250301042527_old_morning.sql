@@ -1,0 +1,2 @@
+-- This migration file has been removed due to duplicate policy names
+-- A new migration file will be created with a different approach
