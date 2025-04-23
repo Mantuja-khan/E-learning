@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { toast } from 'react-hot-toast';
-import { createNotification } from '../lib/notifications';
 import { FaBook, FaUpload, FaTrash, FaEdit, FaDownload, FaFilter, FaArrowLeft, FaSpinner, FaFilePdf } from 'react-icons/fa';
 
 const Notes = ({ onBack }) => {
@@ -107,6 +106,67 @@ const Notes = ({ onBack }) => {
     }
   };
 
+  const sendNotificationsToAllUsers = async (noteTitle, course, branch, semester) => {
+    try {
+      const { data: users, error: usersError } = await supabase
+        .from('profiles')
+        .select('id');
+
+      if (usersError) {
+        console.error('Error fetching users for notifications:', usersError);
+        return;
+      }
+
+      if (!users || users.length === 0) {
+        const { data: authUsers, error: authError } = await supabase
+          .from('auth.users')
+          .select('id, email');
+          
+        if (authError || !authUsers || authUsers.length === 0) {
+          console.error('No users found for notifications');
+          return;
+        }
+        
+        for (const otherUser of authUsers) {
+          if (otherUser.id !== user.id) {
+            // Create in-app notification
+            await supabase.from('notifications').insert([{
+              user_id: otherUser.id,
+              title: 'New Study Material Available',
+              content: `A new note "${noteTitle}" has been added for ${course} - ${branch} (${semester} Semester)`,
+              type: 'note'
+            }]);
+
+            // Send email notification
+            await fetch('http://localhost:3001/api/send-notification-email', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                email: otherUser.email,
+                type: 'note',
+                title: 'New Study Material Available',
+                details: `A new note titled "${noteTitle}" has been added to your course materials for ${course} - ${branch} (${semester} Semester). Log in to LearnSmart to access the new content.`
+              })
+            });
+          }
+        }
+      } else {
+        for (const otherUser of users) {
+          if (otherUser.id !== user.id) {
+            await supabase.from('notifications').insert([{
+              user_id: otherUser.id,
+              title: 'New Study Material Available',
+              content: `A new note "${noteTitle}" has been added for ${course} - ${branch} (${semester} Semester)`,
+              type: 'note'
+            }]);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error sending notifications:', error);
+    }
+  };
+
   const handleSubmit = async (e) => {
     if (e && typeof e.preventDefault === 'function') {
       e.preventDefault();
@@ -169,54 +229,6 @@ const Notes = ({ onBack }) => {
       toast.error('Error saving note: ' + error.message);
     } finally {
       setIsUploading(false);
-    }
-  };
-
-  const sendNotificationsToAllUsers = async (noteTitle, course, branch, semester) => {
-    try {
-      const { data: users, error: usersError } = await supabase
-        .from('profiles')
-        .select('id');
-
-      if (usersError) {
-        console.error('Error fetching users for notifications:', usersError);
-        return;
-      }
-
-      if (!users || users.length === 0) {
-        const { data: authUsers, error: authError } = await supabase
-          .from('auth.users')
-          .select('id');
-          
-        if (authError || !authUsers || authUsers.length === 0) {
-          console.error('No users found for notifications');
-          return;
-        }
-        
-        for (const otherUser of authUsers) {
-          if (otherUser.id !== user.id) {
-            await createNotification(
-              otherUser.id,
-              'New Note Available',
-              `A new note "${noteTitle}" has been added for ${course} - ${branch} (${semester} Semester)`,
-              'note'
-            );
-          }
-        }
-      } else {
-        for (const otherUser of users) {
-          if (otherUser.id !== user.id) {
-            await createNotification(
-              otherUser.id,
-              'New Note Available',
-              `A new note "${noteTitle}" has been added for ${course} - ${branch} (${semester} Semester)`,
-              'note'
-            );
-          }
-        }
-      }
-    } catch (error) {
-      console.error('Error sending notifications:', error);
     }
   };
 

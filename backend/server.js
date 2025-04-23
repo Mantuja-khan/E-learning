@@ -48,7 +48,7 @@ const transporter = nodemailer.createTransport({
   port: 587,
   secure: false,
   auth: {
-    user: 'mantujak@gmail.com',
+    user: 'mantujak82@gmail.com',
     pass: 'lbep cwtb lghg gnrs'
   },
   tls: {
@@ -85,7 +85,7 @@ app.post('/api/send-otp', async (req, res) => {
     const mailOptions = {
       from: {
         name: 'LearnSmart',
-        address: 'mantujakhan79@gmail.com'
+        address: 'mantujak82@gmail.com'
       },
       to: email,
       subject,
@@ -144,35 +144,17 @@ app.post('/api/verify-otp', (req, res) => {
 app.get('/api/admin/users', async (req, res) => {
   try {
     // First, get all users from auth.users
-    const { data: authData, error: authError } = await supabase
-      .from('auth.users')
-      .select('id, email, created_at');
-
+    const { data: authData, error: authError } = await supabase.auth.admin.listUsers();
+    
     if (authError) {
-      console.error('Error fetching users from auth.users:', authError);
-      
-      // Fallback to admin API if direct query fails
-      const { data, error } = await supabase.auth.admin.listUsers();
-      
-      if (error) {
-        throw error;
-      }
-
-      if (!data || !data.users) {
-        return res.status(404).json({ error: 'No users found' });
-      }
-
-      const formattedUsers = data.users.map(user => ({
-        id: user.id,
-        email: user.email,
-        created_at: user.created_at
-      }));
-
-      return res.json(formattedUsers);
+      throw authError;
     }
 
-    // If direct query worked, use that data
-    const formattedUsers = authData.map(user => ({
+    if (!authData || !authData.users) {
+      return res.status(404).json({ error: 'No users found' });
+    }
+
+    const formattedUsers = authData.users.map(user => ({
       id: user.id,
       email: user.email,
       created_at: user.created_at
@@ -183,6 +165,26 @@ app.get('/api/admin/users', async (req, res) => {
     console.error('Error in /api/admin/users:', error);
     res.status(500).json({ 
       error: 'Failed to fetch users',
+      details: error.message 
+    });
+  }
+});
+
+// Delete user endpoint
+app.delete('/api/admin/users/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { error } = await supabase.auth.admin.deleteUser(userId);
+    
+    if (error) {
+      throw error;
+    }
+
+    res.json({ success: true, message: 'User deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting user:', error);
+    res.status(500).json({ 
+      error: 'Failed to delete user',
       details: error.message 
     });
   }
@@ -253,7 +255,7 @@ app.post('/api/send-notification-email', async (req, res) => {
     const mailOptions = {
       from: {
         name: 'LearnSmart',
-        address: 'mantujakhan79@gmail.com'
+        address: 'mantujak82@gmail.com'
       },
       to: email,
       subject: type === 'note' ? 'New Study Material Available - LearnSmart' : 'New Quiz Available - LearnSmart',

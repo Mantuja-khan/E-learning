@@ -105,6 +105,30 @@ const Navbar = ({ onHomeClick, onResultsClick, onLogout, user, onNavigate }) => 
     }
   };
 
+  const handleNotificationClick = async (notification) => {
+    try {
+      // Mark notification as read
+      const { error } = await supabase
+        .from('notifications')
+        .update({ read: true })
+        .eq('id', notification.id);
+
+      if (error) throw error;
+
+      // Navigate to the appropriate section based on notification type
+      if (notification.type === 'note') {
+        onNavigate('notes');
+      } else if (notification.type === 'quiz') {
+        onNavigate('quiz');
+      }
+
+      // Close notifications panel
+      setShowNotifications(false);
+    } catch (error) {
+      console.error('Error handling notification click:', error);
+    }
+  };
+
   const toggleSidebar = () => {
     setIsSidebarOpen(!isSidebarOpen);
   };
@@ -308,7 +332,6 @@ const Navbar = ({ onHomeClick, onResultsClick, onLogout, user, onNavigate }) => 
         }`}
       >
         <div className="p-4">
-          {/* Close Button */}
           <button 
             onClick={() => setShowNotifications(false)}
             className="absolute top-3 right-3 text-gray-500 hover:text-gray-700"
@@ -316,7 +339,6 @@ const Navbar = ({ onHomeClick, onResultsClick, onLogout, user, onNavigate }) => 
             <FaTimes size={16} />
           </button>
 
-          {/* Header */}
           <div className="flex justify-between items-center mb-4">
             <h3 className="text-lg font-semibold text-gray-800">Notifications</h3>
             {notifications.length > 0 && (
@@ -329,7 +351,6 @@ const Navbar = ({ onHomeClick, onResultsClick, onLogout, user, onNavigate }) => 
             )}
           </div>
 
-          {/* Notifications List */}
           <div className="max-h-[calc(100vh-8rem)] overflow-y-auto">
             {notifications.length === 0 ? (
               <div className="text-center text-gray-500 py-4">
@@ -339,7 +360,8 @@ const Navbar = ({ onHomeClick, onResultsClick, onLogout, user, onNavigate }) => 
               notifications.map(notification => (
                 <div
                   key={notification.id}
-                  className="p-3 hover:bg-gray-50 rounded-lg transition-colors"
+                  onClick={() => handleNotificationClick(notification)}
+                  className="p-3 hover:bg-gray-50 rounded-lg transition-colors cursor-pointer"
                 >
                   <div className="flex justify-between items-start">
                     <div className="flex-1">
@@ -354,7 +376,10 @@ const Navbar = ({ onHomeClick, onResultsClick, onLogout, user, onNavigate }) => 
                       </p>
                     </div>
                     <button
-                      onClick={() => markAsRead(notification.id)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        markAsRead(notification.id);
+                      }}
                       className="text-blue-600 hover:text-blue-800 p-1"
                     >
                       <FaCheck size={14} />
